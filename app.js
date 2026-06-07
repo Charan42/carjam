@@ -273,44 +273,145 @@
   }
 
   /* ----------------------- Auto-detect (best effort) -------------------- */
-  // Samples each cell's center color, then groups orthogonally-adjacent cells
-  // of similar color into vehicles. Direction is a guess — review & fix.
+  // Pixel helpers operating on an ImageData of the grid area.
+  function px(d, x, y) {
+    x = x < 0 ? 0 : x >= d.width ? d.width - 1 : x | 0;
+    y = y < 0 ? 0 : y >= d.height ? d.height - 1 : y | 0;
+    const i = (y * d.width + x) * 4;
+    return [d.data[i], d.data[i + 1], d.data[i + 2]];
+  }
+  function avgColor(d, x0, y0, x1, y1) {
+    x0 = Math.max(0, x0 | 0); y0 = Math.max(0, y0 | 0);
+    x1 = Math.min(d.width, x1 | 0); y1 = Math.min(d.height, y1 | 0);
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let y = y0; y < y1; y++)
+      for (let x = x0; x < x1; x++) { const i = (y * d.width + x) * 4; r += d.data[i]; g += d.data[i + 1]; b += d.data[i + 2]; n++; }
+    return n ? [r / n | 0, g / n | 0, b / n | 0] : [0, 0, 0];
+  }
+  // Most common coarse-quantized color in a region — robust "body" color.
+  function dominantColor(d, x0, y0, x1, y1) {
+    x0 = Math.max(0, x0 | 0); y0 = Math.max(0, y0 | 0);
+    x1 = Math.min(d.width, x1 | 0); y1 = Math.min(d.height, y1 | 0);
+    const hist = new Map();
+    for (let y = y0; y < y1; y++)
+      for (let x = x0; x < x1; x++) {
+        const i = (y * d.width + x) * 4;
+        const k = (d.data[i] >> 4) + ',' + (d.data[i + 1] >> 4) + ',' + (d.data[i + 2] >> 4);
+        const e = hist.get(k);
+        if (e) { e.n++; e.r += d.data[i]; e.g += d.data[i + 1]; e.b += d.data[i + 2]; }
+        else hist.set(k, { n: 1, r: d.data[i], g: d.data[i + 1], b: d.data[i + 2] });
+      }
+    let best = null;
+    for (const e of hist.values()) if (!best || e.n > best.n) best = e;
+    return best ? [best.r / best.n | 0, best.g / best.n | 0, best.b / best.n | 0] : [0, 0, 0];
+  }
+
+  // Infer the arrow direction for one vehicle by analysing the contrasting
+  // "marker" pixels (the printed arrow) inside its box: the tip is the narrow
+  // end of the marker along the vehicle's long axis. Falls back to the side
+  // with the most open space when no clear marker is found.
+  function detectArrowDir(d, v, cw, ch, isBg) {
+    const x0 = v.c0 * cw, y0 = v.r0 * ch, x1 = (v.c1 + 1) * cw, y1 = (v.r1 + 1) * ch;
+    const W = Math.max(1, Math.round(x1 - x0)), H = Math.max(1, Math.round(y1 - y0));
+    const body = dominantColor(d, x0, y0, x1, y1);
+    const MT = 95; // contrast needed to count as arrow marker
+
+    const colCnt = new Array(W).fill(0), rowCnt = new Array(H).fill(0);
+    let total = 0, xmin = W, xmax = -1, ymin = H, ymax = -1;
+    for (let yy = 0; yy < H; yy++) {
+      for (let xx = 0; xx < W; xx++) {
+        const p = px(d, (x0 | 0) + xx, (y0 | 0) + yy);
+        if (colorDist(p, body) > MT) {
+          colCnt[xx]++; rowCnt[yy]++; total++;
+          if (xx < xmin) xmin = xx; if (xx > xmax) xmax = xx;
+          if (yy < ymin) ymin = yy; if (yy > ymax) ymax = yy;
+        }
+      }
+    }
+
+    const wCells = v.c1 - v.c0, hCells = v.r1 - v.r0;
+    let horizontal;
+    if (wCells !== hCells) horizontal = wCells > hCells;       // long axis of the body
+    else horizontal = (xmax - xmin) >= (ymax - ymin);          // square: marker spread
+
+    // Average marker thickness near each end of the long axis; tip = thinner end.
+    const endAvg = (arr, lo, hi) => {
+      let s = 0, n = 0;
+      for (let i = Math.max(0, lo | 0); i < Math.min(arr.length, hi | 0); i++) { s += arr[i]; n++; }
+      return n ? s / n : 0;
+    };
+    const enough = total >= Math.max(20, (W * H) * 0.02);
+    if (enough) {
+      if (horizontal) {
+        const span = Math.max(1, xmax - xmin), q = Math.max(2, span * 0.3);
+        const left = endAvg(colCnt, xmin, xmin + q), right = endAvg(colCnt, xmax - q, xmax + 1);
+        if (Math.abs(left - right) > 0.15 * Math.max(left, right)) return right < left ? 'right' : 'left';
+      } else {
+        const span = Math.max(1, ymax - ymin), q = Math.max(2, span * 0.3);
+        const top = endAvg(rowCnt, ymin, ymin + q), bot = endAvg(rowCnt, ymax - q, ymax + 1);
+        if (Math.abs(top - bot) > 0.15 * Math.max(top, bot)) return bot < top ? 'down' : 'up';
+      }
+    }
+
+    // Fallback: point toward the longer run of open cells along the long axis.
+    const openRun = (dr, dc) => {
+      let n = 0, r = (dr < 0 ? v.r0 : v.r1) + dr, c = (dc < 0 ? v.c0 : v.c1) + dc;
+      while (r >= 0 && c >= 0 && r < state.grid.rows && c < state.grid.cols && isBg(r, c)) { n++; r += dr; c += dc; }
+      return n;
+    };
+    if (horizontal) return openRun(0, 1) >= openRun(0, -1) ? 'right' : 'left';
+    return openRun(1, 0) >= openRun(-1, 0) ? 'down' : 'up';
+  }
+
+  // Groups orthogonally-adjacent cells of similar colour into vehicles, then
+  // infers each vehicle's arrow direction. Still best-effort — review & fix.
   function autoDetect() {
     if (!state.img) { setStatus('Upload an image first.'); return; }
     if (!state.area) { setStatus('Set the grid area first.'); return; }
 
     const { rows, cols } = state.grid;
-    // Render fresh image so sampling reads pixels, not overlays.
+    // Render fresh image, then read the whole grid area once.
     ctx.drawImage(state.img, 0, 0, canvas.width, canvas.height);
+    const a = state.area;
+    const d = ctx.getImageData(Math.round(a.x), Math.round(a.y), Math.round(a.w), Math.round(a.h));
+    const cw = d.width / cols, ch = d.height / rows;
 
+    // Robust per-cell colour: average of the central 40% of each cell.
     const colors = [];
     for (let r = 0; r < rows; r++) {
       colors[r] = [];
-      for (let c = 0; c < cols; c++) colors[r][c] = cellColor(r, c);
+      for (let c = 0; c < cols; c++)
+        colors[r][c] = avgColor(d, c * cw + cw * 0.3, r * ch + ch * 0.3, c * cw + cw * 0.7, r * ch + ch * 0.7);
     }
 
-    // Estimate background = most common quantized color (the road/empty space).
-    const bins = new Map();
-    for (let r = 0; r < rows; r++)
-      for (let c = 0; c < cols; c++) {
+    // Background = most common quantized colour among the border cells (the
+    // road/empty space usually frames the grid), falling back to the global mode.
+    const tally = (cells) => {
+      const bins = new Map();
+      for (const [r, c] of cells) {
         const k = colors[r][c].map((x) => x >> 5).join(',');
         bins.set(k, (bins.get(k) || 0) + 1);
       }
-    let bgKey = null, bgN = -1;
-    for (const [k, n] of bins) if (n > bgN) { bgN = n; bgKey = k; }
+      let key = null, max = -1;
+      for (const [k, n] of bins) if (n > max) { max = n; key = k; }
+      return key;
+    };
+    const border = [];
+    for (let c = 0; c < cols; c++) { border.push([0, c]); border.push([rows - 1, c]); }
+    for (let r = 0; r < rows; r++) { border.push([r, 0]); border.push([r, cols - 1]); }
+    const all = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) all.push([r, c]);
+    const bgKey = tally(border) || tally(all);
     const isBg = (r, c) => colors[r][c].map((x) => x >> 5).join(',') === bgKey;
 
-    const THRESH = 60; // color distance for "same vehicle"
+    const THRESH = 60; // colour distance for "same vehicle"
     const seen = Array.from({ length: rows }, () => new Array(cols).fill(false));
     const found = [];
-
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (seen[r][c] || isBg(r, c)) continue;
-        // BFS flood fill of similar color
         const base = colors[r][c];
-        const q = [[r, c]];
-        const group = [];
+        const q = [[r, c]], group = [];
         seen[r][c] = true;
         while (q.length) {
           const [cr, cc] = q.pop();
@@ -322,7 +423,6 @@
             if (colorDist(base, colors[nr][nc]) <= THRESH) { seen[nr][nc] = true; q.push([nr, nc]); }
           }
         }
-        // bounding box of the group
         let r0 = rows, c0 = cols, r1 = 0, c1 = 0;
         for (const [gr, gc] of group) { r0 = Math.min(r0, gr); c0 = Math.min(c0, gc); r1 = Math.max(r1, gr); c1 = Math.max(c1, gc); }
         found.push({ r0, c0, r1, c1, color: rgbToHex(base[0], base[1], base[2]), size: group.length });
@@ -331,17 +431,16 @@
 
     state.vehicles = found
       .filter((g) => g.size >= 1)
-      .map((g) => ({
-        id: state.nextId++,
-        r0: g.r0, c0: g.c0, r1: g.r1, c1: g.c1,
-        dir: g.r1 - g.r0 >= g.c1 - g.c0 ? 'up' : 'left',
-        color: g.color,
-      }));
+      .map((g) => {
+        const v = { id: state.nextId++, r0: g.r0, c0: g.c0, r1: g.r1, c1: g.c1, color: g.color, dir: 'up' };
+        v.dir = detectArrowDir(d, v, cw, ch, isBg);
+        return v;
+      });
     state.results = null;
     state.selectedId = null;
     syncSelectedBar();
     render();
-    setStatus(`Auto-detected ${state.vehicles.length} vehicle(s). ⚠️ Review boxes & set each arrow direction, then Rank.`);
+    setStatus(`Auto-detected ${state.vehicles.length} vehicle(s) with guessed directions. ⚠️ Verify the arrows, then Rank.`);
   }
 
   /* ------------------------------ Ranking ------------------------------- */

@@ -38,9 +38,11 @@ browser image/canvas restrictions.)
 5. Click **🏁 Rank vehicles**. Rank badges appear on the board (red = rank 1)
    and a sorted list shows scores, direct-blocker counts, and free vehicles.
 
-> ⚠️ Auto-detect is a best-effort starting point. It guesses vehicle boxes from
-> cell colors and **cannot read arrow directions** — always review the boxes and
-> set each direction before ranking.
+> ⚠️ Auto-detect is a best-effort starting point. It groups vehicle boxes from
+> cell colors **and guesses each arrow direction** from the printed arrow's
+> shape (tip = narrow end), falling back to open-space when unclear. It is not
+> 100% reliable — always eyeball the arrows and fix any wrong ones before
+> ranking. Then **🏁 Rank vehicles** and **⬇️ Download ranked image**.
 
 ## Project layout
 
