@@ -1,0 +1,144 @@
+:root {
+  --bg: #0f1226;
+  --panel: #1a1e3a;
+  --panel-2: #232847;
+  --ink: #e8ecff;
+  --muted: #9aa3c7;
+  --accent: #5b8cff;
+  --accent-2: #3aa0ff;
+  --danger: #ff5b6e;
+  --good: #46d18b;
+  --line: #333a63;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(1200px 600px at 70% -10%, #232847, var(--bg));
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+header {
+  padding: 22px 28px 6px;
+}
+header h1 { margin: 0 0 4px; font-size: 1.55rem; }
+.tagline { margin: 0; color: var(--muted); }
+.tagline strong { color: var(--good); }
+
+main {
+  padding: 14px 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.steps ol { margin: 4px 0; padding-left: 22px; color: var(--muted); }
+.steps li { margin: 2px 0; }
+.steps em { color: var(--accent-2); font-style: normal; font-weight: 600; }
+
+.controls .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.controls label { color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.controls input[type="number"] {
+  width: 60px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+.sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.modes { color: var(--muted); font-weight: 600; }
+.hint { color: var(--muted); font-size: .85rem; }
+
+button {
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: .92rem;
+  transition: transform .05s ease, background .15s ease, border-color .15s ease;
+}
+button:hover { border-color: var(--accent); }
+button:active { transform: translateY(1px); }
+button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary { background: var(--good); border-color: var(--good); color: #04210f; font-weight: 700; }
+button.danger { border-color: var(--danger); color: var(--danger); }
+button.dir { font-size: 1.1rem; min-width: 40px; }
+
+.file-btn {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 9px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.file-btn:hover { filter: brightness(1.05); }
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+}
+
+.canvas-wrap { display: flex; flex-direction: column; gap: 8px; }
+#board {
+  width: 100%;
+  height: auto;
+  background:
+    linear-gradient(45deg, #14172e 25%, transparent 25%),
+    linear-gradient(-45deg, #14172e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #14172e 75%),
+    linear-gradient(-45deg, transparent 75%, #14172e 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  border-radius: 10px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.status { margin: 0; color: var(--muted); font-size: .9rem; min-height: 1.2em; }
+
+.results h2 { margin: 0 0 6px; font-size: 1.15rem; }
+.muted { color: var(--muted); font-size: .88rem; }
+#resultsList { margin: 8px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.result-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.rank-badge {
+  min-width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  font-weight: 800;
+  background: var(--accent);
+  color: #fff;
+}
+.rank-1 .rank-badge { background: var(--danger); }
+.swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #0006; }
+.result-meta { font-size: .85rem; color: var(--muted); }
+.result-meta strong { color: var(--ink); }

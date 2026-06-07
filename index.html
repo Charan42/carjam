@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CarJam · Blocked Vehicle Ranker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🚗 CarJam — Blocked Vehicle Ranker</h1>
+      <p class="tagline">
+        Upload a parking-jam image, trace the layout, and rank vehicles by how
+        blocked they are. <strong>Rank 1 = most blocked.</strong>
+      </p>
+    </header>
+
+    <main>
+      <section class="panel steps">
+        <ol>
+          <li><strong>Upload</strong> the puzzle image.</li>
+          <li>Set <strong>rows &amp; cols</strong>, then <em>Set grid area</em> and drag a box over the parking grid.</li>
+          <li><em>Auto-detect</em> for a rough fill, or <em>Add vehicle</em> and drag across cells.</li>
+          <li><em>Select</em> a vehicle to set its arrow direction (the way it can move).</li>
+          <li><strong>Rank vehicles</strong> to see results.</li>
+        </ol>
+      </section>
+
+      <section class="panel controls">
+        <div class="row">
+          <label class="file-btn">
+            📁 Upload image
+            <input type="file" id="fileInput" accept="image/*" hidden />
+          </label>
+          <span class="sep"></span>
+          <label>Rows <input type="number" id="rows" min="1" max="40" value="10" /></label>
+          <label>Cols <input type="number" id="cols" min="1" max="40" value="12" /></label>
+          <label><input type="checkbox" id="showGrid" checked /> Show grid</label>
+        </div>
+
+        <div class="row">
+          <span class="modes">Mode:</span>
+          <button data-mode="area" class="mode">📐 Set grid area</button>
+          <button data-mode="add" class="mode">➕ Add vehicle</button>
+          <button data-mode="select" class="mode active">✋ Select / edit</button>
+          <span class="sep"></span>
+          <button id="autoDetect">✨ Auto-detect</button>
+          <button id="rankBtn" class="primary">🏁 Rank vehicles</button>
+          <button id="clearBtn" class="danger">🗑 Clear all</button>
+        </div>
+
+        <div class="row" id="selectedBar" hidden>
+          <span>Selected vehicle —</span>
+          <span class="modes">Direction:</span>
+          <button class="dir" data-dir="up">↑</button>
+          <button class="dir" data-dir="down">↓</button>
+          <button class="dir" data-dir="left">←</button>
+          <button class="dir" data-dir="right">→</button>
+          <span class="sep"></span>
+          <label>Color <input type="color" id="vColor" value="#3aa0ff" /></label>
+          <button id="deleteVehicle" class="danger">Delete</button>
+          <span class="hint">Tip: arrow keys also set direction</span>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <section class="panel canvas-wrap">
+          <canvas id="board" width="800" height="600"></canvas>
+          <p class="status" id="status">Upload an image to begin.</p>
+        </section>
+
+        <aside class="panel results">
+          <h2>Rankings</h2>
+          <p class="muted" id="resultsHint">
+            Run <em>Rank vehicles</em> to populate. Higher score = depends on
+            more vehicles = more blocked.
+          </p>
+          <ol id="resultsList"></ol>
+        </aside>
+      </div>
+    </main>
+
+    <script src="ranking.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
