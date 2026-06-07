@@ -353,6 +353,35 @@
     setStatus('Ranked! Rank 1 (red badge) is the most blocked.');
   }
 
+  // Export the photo with every vehicle's rank drawn on it, as a new PNG.
+  function downloadRankedImage() {
+    if (!state.vehicles.length) { setStatus('Add vehicles first.'); return; }
+    if (!state.results) runRank(); // ensure all vehicles are ranked before export
+    if (!state.results) return;
+
+    // Render a clean frame: no grid lines, no selection highlight, no drag preview.
+    const savedSel = state.selectedId, savedGrid = state.showGrid, savedDrag = state.drag;
+    state.selectedId = null; state.showGrid = false; state.drag = null;
+    render();
+    let url;
+    try {
+      url = canvas.toDataURL('image/png');
+    } catch (e) {
+      setStatus('Could not export (image security restriction). Serve the page over http and retry.');
+    }
+    state.selectedId = savedSel; state.showGrid = savedGrid; state.drag = savedDrag;
+    render();
+    if (!url) return;
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'carjam-ranked.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setStatus(`Saved ranked image for ${state.results.length} vehicle(s) as carjam-ranked.png`);
+  }
+
   function renderResults() {
     const list = document.getElementById('resultsList');
     const hint = document.getElementById('resultsHint');
@@ -438,6 +467,7 @@
   document.querySelectorAll('.mode').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
   document.getElementById('autoDetect').addEventListener('click', autoDetect);
   document.getElementById('rankBtn').addEventListener('click', runRank);
+  document.getElementById('downloadBtn').addEventListener('click', downloadRankedImage);
   document.getElementById('clearBtn').addEventListener('click', () => {
     state.vehicles = []; state.results = null; state.selectedId = null;
     syncSelectedBar(); renderResults(); render(); setStatus('Cleared all vehicles.');
